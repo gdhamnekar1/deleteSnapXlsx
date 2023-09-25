@@ -1,0 +1,56 @@
+Copy code
+trigger:
+- '*'
+
+variables:
+  SecureFilePath: 'path_to_your_secure_file/snapshots.xlsx'
+  AzureSubscription: 'your_azure_subscription_name'
+
+jobs:
+- job: DeleteSnapshots
+  displayName: 'Delete Snapshots'
+  pool:
+    vmImage: 'windows-latest'
+    
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: '3.x'
+      addToPath: true
+
+  - task: AzureCLI@2
+    displayName: 'Azure Login'
+    inputs:
+      azureSubscription: '$(43299d92-f1af-4f7d-985d-91b63327503e)'
+      scriptType: pscore
+      scriptLocation: inlineScript
+      inlineScript: |
+        az login --service-principal --username $(c0f96883-c578-4dcf-9719-c5be3745307c) --password $(a49d5935-2fec-4130-b506-4328717462fa) --tenant $(6f79126d-0f7b-4f16-915a-b0f1125bbe4f)
+
+  - task: DownloadSecureFile@1
+    displayName: 'Download Excel File'
+    inputs:
+      secureFile: $(SecureFilePath)
+      retryCount: 3
+
+  - task: PowerShell@2
+    displayName: 'Delete Snapshots'
+    inputs:
+      targetType: 'inline'
+      script: |
+        # Import the Excel module
+        Import-Module -Name ImportExcel
+
+        # Load the Excel file
+        $filePath = '$(Agent.TempDirectory)/snapshots.xlsx'
+        $snapshots = Import-Excel $filePath
+
+        # Loop through the snapshots and delete them
+        foreach ($snapshot in $snapshots) {
+            $resourceGroup = $snapshot.ResourceGroup
+            $snapshotName = $snapshot.Name
+            Write-Output "Deleting snapshot $snapshotName in resource group $resourceGroup"
+
+            # Add your deletion command here
+            # Example: az snapshot delete -g $resourceGroup -n $snapshotName --yes --output none
+        }
